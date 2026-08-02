@@ -309,7 +309,17 @@ export default function App() {
         ) : (
           <ul
             ref={listRef}
-            style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 10 }}
+            style={{
+              listStyle: "none",
+              margin: 0,
+              padding: 0,
+              display: "flex",
+              flexDirection: "column",
+              gap: 10,
+              WebkitUserSelect: "none",
+              userSelect: "none",
+              WebkitTouchCallout: "none",
+            }}
           >
             {items.map((item, idx) => {
               const isDragging = dragId === item.id;
@@ -412,6 +422,7 @@ export default function App() {
 
                   <div
                     onPointerDown={(e) => handlePointerDownOnGrip(e, item.id)}
+                    onContextMenu={(e) => e.preventDefault()}
                     style={{
                       flexShrink: 0,
                       padding: 8,
@@ -419,6 +430,9 @@ export default function App() {
                       touchAction: "none",
                       cursor: "grab",
                       display: "flex",
+                      WebkitUserSelect: "none",
+                      userSelect: "none",
+                      WebkitTouchCallout: "none",
                     }}
                   >
                     <GripVertical size={18} color={isDragging ? ACCENT : "#3A3940"} />
