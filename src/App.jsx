@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { GripVertical, Plus, X, ImageOff, Sparkles, Upload } from "lucide-react";
+import { GripVertical, Plus, X, ImageOff, Sparkles, Upload, Check } from "lucide-react";
 import { idbGet, idbSet } from "./idb.js";
 
 const ACCENT = "#FF4655";
@@ -55,7 +55,11 @@ export default function App() {
   const [dragId, setDragId] = useState(null);
   const [overId, setOverId] = useState(null);
   const [saveState, setSaveState] = useState("idle");
+  const [editingId, setEditingId] = useState(null);
+  const [editName, setEditName] = useState("");
+  const [editImage, setEditImage] = useState("");
   const fileInputRef = useRef(null);
+  const editFileInputRef = useRef(null);
   const listRef = useRef(null);
   const draggingRef = useRef(null); // guarda el id que se está arrastrando, sin re-render
 
@@ -107,6 +111,37 @@ export default function App() {
 
   function removeAnime(id) {
     setItems((prev) => prev.filter((i) => i.id !== id));
+  }
+
+  function startEdit(item) {
+    setEditingId(item.id);
+    setEditName(item.name);
+    setEditImage(item.image || "");
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+    setEditName("");
+    setEditImage("");
+  }
+
+  function saveEdit() {
+    if (!editName.trim()) return;
+    setItems((prev) =>
+      prev.map((i) => (i.id === editingId ? { ...i, name: editName.trim(), image: editImage } : i))
+    );
+    cancelEdit();
+  }
+
+  async function handleEditFileChange(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const dataUrl = await fileToCompressedDataUrl(file);
+      setEditImage(dataUrl);
+    } catch (err) {
+      alert("No se pudo procesar esa imagen. Prueba con otra.");
+    }
   }
 
   // --- Arrastre táctil ---
@@ -266,7 +301,7 @@ export default function App() {
             </h1>
           </div>
           <p style={{ fontFamily: "Barlow, sans-serif", color: "#8B8A94", fontSize: 15, margin: 0 }}>
-            Mantén presionado el ícono ⠿ y arrastra para reordenar. Funciona sin conexión, todo se guarda en tu celular.
+            Mantén presionado ⠿ para reordenar. Toca el nombre o la imagen para editarlos. Todo se guarda sin conexión en tu celular.
           </p>
         </header>
 
@@ -399,6 +434,109 @@ export default function App() {
             {items.map((item, idx) => {
               const isDragging = dragId === item.id;
               const isOver = overId === item.id && dragId !== item.id;
+              const isEditing = editingId === item.id;
+
+              if (isEditing) {
+                return (
+                  <li
+                    key={item.id}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 12,
+                      background: "#1B1A20",
+                      border: `1px solid ${ACCENT}`,
+                      borderRadius: 12,
+                      padding: 10,
+                    }}
+                  >
+                    <label
+                      style={{
+                        width: 56,
+                        height: 56,
+                        flexShrink: 0,
+                        borderRadius: 8,
+                        border: "1.5px dashed #3A3940",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        overflow: "hidden",
+                        cursor: "pointer",
+                        background: "#0B0B0F",
+                        position: "relative",
+                      }}
+                    >
+                      <input
+                        ref={editFileInputRef}
+                        type="file"
+                        accept="image/*"
+                        onChange={handleEditFileChange}
+                        style={{ position: "absolute", inset: 0, opacity: 0, cursor: "pointer" }}
+                      />
+                      {editImage ? (
+                        <img
+                          src={editImage}
+                          alt="preview"
+                          style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                        />
+                      ) : (
+                        <Upload size={18} color="#5C5B64" />
+                      )}
+                    </label>
+
+                    <input
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && saveEdit()}
+                      autoFocus
+                      style={{
+                        flex: 1,
+                        minWidth: 0,
+                        background: "#0B0B0F",
+                        border: "1px solid #2A2930",
+                        borderRadius: 8,
+                        padding: "8px 10px",
+                        color: "#F2F1ED",
+                        fontFamily: "Barlow, sans-serif",
+                        fontSize: 15,
+                        outline: "none",
+                      }}
+                    />
+
+                    <button
+                      onClick={saveEdit}
+                      aria-label="Guardar"
+                      style={{
+                        background: ACCENT,
+                        border: "none",
+                        borderRadius: 8,
+                        padding: 8,
+                        display: "flex",
+                        cursor: "pointer",
+                        flexShrink: 0,
+                      }}
+                    >
+                      <Check size={18} color="#0B0B0F" strokeWidth={3} />
+                    </button>
+                    <button
+                      onClick={cancelEdit}
+                      aria-label="Cancelar"
+                      style={{
+                        background: "none",
+                        border: "none",
+                        color: "#5C5B64",
+                        cursor: "pointer",
+                        flexShrink: 0,
+                        padding: 4,
+                        display: "flex",
+                      }}
+                    >
+                      <X size={18} />
+                    </button>
+                  </li>
+                );
+              }
+
               return (
                 <li
                   key={item.id}
@@ -435,6 +573,7 @@ export default function App() {
                   </div>
 
                   <div
+                    onClick={() => startEdit(item)}
                     style={{
                       width: 56,
                       height: 56,
@@ -446,6 +585,7 @@ export default function App() {
                       alignItems: "center",
                       justifyContent: "center",
                       border: "1px solid #232228",
+                      cursor: "pointer",
                     }}
                   >
                     {item.image ? (
@@ -463,6 +603,7 @@ export default function App() {
                   </div>
 
                   <div
+                    onClick={() => startEdit(item)}
                     style={{
                       flex: 1,
                       fontFamily: "'Barlow Condensed', sans-serif",
@@ -472,6 +613,7 @@ export default function App() {
                       overflow: "hidden",
                       textOverflow: "ellipsis",
                       whiteSpace: "nowrap",
+                      cursor: "pointer",
                     }}
                   >
                     {item.name}
