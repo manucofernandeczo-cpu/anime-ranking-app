@@ -144,50 +144,15 @@ export default function App() {
     }
   }
 
-  // --- Arrastre táctil ---
-  // Mantener presionado en cualquier parte de la tarjeta (excepto botones/inputs) inicia el
-  // arrastre tras un pequeño instante, para no confundirlo con un toque o con el scroll normal.
-  const longPressTimer = useRef(null);
-  const startPoint = useRef({ x: 0, y: 0 });
-  const pressCancelled = useRef(false);
+  // --- Arrastre táctil (solo desde el ícono ⠿, para no interferir con el scroll normal) ---
   const autoScrollFrame = useRef(null);
+  const startPoint = useRef({ x: 0, y: 0 });
   const lastPointerY = useRef(0);
-
-  function handlePointerDownOnItem(e, id) {
-    if (e.target.closest("button, input, label")) return; // no interferir con controles
-    pressCancelled.current = false;
-    startPoint.current = { x: e.clientX, y: e.clientY };
-
-    const onEarlyMove = (ev) => {
-      const dx = Math.abs(ev.clientX - startPoint.current.x);
-      const dy = Math.abs(ev.clientY - startPoint.current.y);
-      if (dx > 10 || dy > 10) {
-        pressCancelled.current = true;
-        clearTimeout(longPressTimer.current);
-        cleanupEarly();
-      }
-    };
-    const onEarlyUp = () => {
-      clearTimeout(longPressTimer.current);
-      cleanupEarly();
-    };
-    function cleanupEarly() {
-      window.removeEventListener("pointermove", onEarlyMove);
-      window.removeEventListener("pointerup", onEarlyUp);
-    }
-    window.addEventListener("pointermove", onEarlyMove);
-    window.addEventListener("pointerup", onEarlyUp);
-
-    longPressTimer.current = setTimeout(() => {
-      cleanupEarly();
-      if (pressCancelled.current) return;
-      startDrag(e, id);
-    }, 220);
-  }
 
   function startDrag(e, id) {
     draggingRef.current = id;
     setDragId(id);
+    startPoint.current = { x: e.clientX, y: e.clientY };
     lastPointerY.current = e.clientY;
     try {
       e.target.setPointerCapture?.(e.pointerId);
@@ -301,7 +266,7 @@ export default function App() {
             </h1>
           </div>
           <p style={{ fontFamily: "Barlow, sans-serif", color: "#8B8A94", fontSize: 15, margin: 0 }}>
-            Mantén presionado ⠿ para reordenar. Toca el nombre o la imagen para editarlos. Todo se guarda sin conexión en tu celular.
+            Mantén presionado ⠿ para reordenar. Toca el nombre o la imagen para editarlos.
           </p>
         </header>
 
@@ -541,7 +506,6 @@ export default function App() {
                 <li
                   key={item.id}
                   data-item-id={item.id}
-                  onPointerDown={(e) => handlePointerDownOnItem(e, item.id)}
                   style={{
                     display: "flex",
                     alignItems: "center",
