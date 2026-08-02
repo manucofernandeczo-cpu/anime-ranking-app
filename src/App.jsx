@@ -109,22 +109,76 @@ export default function App() {
     setItems((prev) => prev.filter((i) => i.id !== id));
   }
 
-  // --- Arrastre táctil (funciona con el dedo, a diferencia del drag HTML5) ---
-  function handlePointerDownOnGrip(e, id) {
-    e.preventDefault();
+  // --- Arrastre táctil ---
+  // Mantener presionado en cualquier parte de la tarjeta (excepto botones/inputs) inicia el
+  // arrastre tras un pequeño instante, para no confundirlo con un toque o con el scroll normal.
+  const longPressTimer = useRef(null);
+  const startPoint = useRef({ x: 0, y: 0 });
+  const pressCancelled = useRef(false);
+  const autoScrollFrame = useRef(null);
+  const lastPointerY = useRef(0);
+
+  function handlePointerDownOnItem(e, id) {
+    if (e.target.closest("button, input, label")) return; // no interferir con controles
+    pressCancelled.current = false;
+    startPoint.current = { x: e.clientX, y: e.clientY };
+
+    const onEarlyMove = (ev) => {
+      const dx = Math.abs(ev.clientX - startPoint.current.x);
+      const dy = Math.abs(ev.clientY - startPoint.current.y);
+      if (dx > 10 || dy > 10) {
+        pressCancelled.current = true;
+        clearTimeout(longPressTimer.current);
+        cleanupEarly();
+      }
+    };
+    const onEarlyUp = () => {
+      clearTimeout(longPressTimer.current);
+      cleanupEarly();
+    };
+    function cleanupEarly() {
+      window.removeEventListener("pointermove", onEarlyMove);
+      window.removeEventListener("pointerup", onEarlyUp);
+    }
+    window.addEventListener("pointermove", onEarlyMove);
+    window.addEventListener("pointerup", onEarlyUp);
+
+    longPressTimer.current = setTimeout(() => {
+      cleanupEarly();
+      if (pressCancelled.current) return;
+      startDrag(e, id);
+    }, 220);
+  }
+
+  function startDrag(e, id) {
     draggingRef.current = id;
     setDragId(id);
-    // Capturamos el puntero en el elemento del documento para poder seguirlo
-    // aunque el dedo se mueva fuera del elemento original.
+    lastPointerY.current = e.clientY;
+    try {
+      e.target.setPointerCapture?.(e.pointerId);
+    } catch (_) {
+      // algunos navegadores no lo permiten fuera del elemento original; no es crítico
+    }
     window.addEventListener("pointermove", handlePointerMove);
     window.addEventListener("pointerup", handlePointerUp);
     window.addEventListener("pointercancel", handlePointerUp);
   }
 
+  // El grip (⠿) sigue permitiendo iniciar el arrastre al instante, sin espera.
+  function handlePointerDownOnGrip(e, id) {
+    e.preventDefault();
+    startDrag(e, id);
+  }
+
   function handlePointerMove(e) {
-    if (!draggingRef.current || !listRef.current) return;
-    const point = e.touches ? e.touches[0] : e;
-    const el = document.elementFromPoint(point.clientX, point.clientY);
+    if (!draggingRef.current) return;
+    lastPointerY.current = e.clientY;
+    reorderUnderPoint(e.clientX, e.clientY);
+    maybeAutoScroll(e.clientY);
+  }
+
+  function reorderUnderPoint(x, y) {
+    const el = document.elementFromPoint(x, y);
     const li = el?.closest?.("[data-item-id]");
     if (!li) return;
     const targetId = li.getAttribute("data-item-id");
@@ -142,10 +196,31 @@ export default function App() {
     }
   }
 
+  // Si arrastrás cerca del borde superior/inferior de la pantalla, la lista se desplaza sola,
+  // para poder mover un anime a una posición fuera de la vista actual.
+  function maybeAutoScroll(y) {
+    const margin = 90;
+    const vh = window.innerHeight;
+    let speed = 0;
+    if (y < margin) speed = -Math.ceil((margin - y) / 4) - 3;
+    else if (y > vh - margin) speed = Math.ceil((y - (vh - margin)) / 4) + 3;
+
+    cancelAnimationFrame(autoScrollFrame.current);
+    if (speed !== 0) {
+      const step = () => {
+        window.scrollBy(0, speed);
+        reorderUnderPoint(startPoint.current.x, lastPointerY.current);
+        autoScrollFrame.current = requestAnimationFrame(step);
+      };
+      autoScrollFrame.current = requestAnimationFrame(step);
+    }
+  }
+
   function handlePointerUp() {
     draggingRef.current = null;
     setDragId(null);
     setOverId(null);
+    cancelAnimationFrame(autoScrollFrame.current);
     window.removeEventListener("pointermove", handlePointerMove);
     window.removeEventListener("pointerup", handlePointerUp);
     window.removeEventListener("pointercancel", handlePointerUp);
@@ -328,6 +403,7 @@ export default function App() {
                 <li
                   key={item.id}
                   data-item-id={item.id}
+                  onPointerDown={(e) => handlePointerDownOnItem(e, item.id)}
                   style={{
                     display: "flex",
                     alignItems: "center",
@@ -338,7 +414,7 @@ export default function App() {
                     padding: 10,
                     opacity: isDragging ? 0.5 : 1,
                     transition: isDragging ? "none" : "background 0.15s, border-color 0.15s, opacity 0.15s",
-                    touchAction: "pan-y",
+                    touchAction: isDragging ? "none" : "pan-y",
                   }}
                 >
                   <div
