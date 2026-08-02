@@ -56,6 +56,8 @@ export default function App() {
   const [overId, setOverId] = useState(null);
   const [saveState, setSaveState] = useState("idle");
   const fileInputRef = useRef(null);
+  const listRef = useRef(null);
+  const draggingRef = useRef(null); // guarda el id que se está arrastrando, sin re-render
 
   useEffect(() => {
     (async () => {
@@ -107,23 +109,46 @@ export default function App() {
     setItems((prev) => prev.filter((i) => i.id !== id));
   }
 
-  function handleDrop(targetId) {
-    if (dragId === null || dragId === targetId) {
-      setDragId(null);
-      setOverId(null);
-      return;
+  // --- Arrastre táctil (funciona con el dedo, a diferencia del drag HTML5) ---
+  function handlePointerDownOnGrip(e, id) {
+    e.preventDefault();
+    draggingRef.current = id;
+    setDragId(id);
+    // Capturamos el puntero en el elemento del documento para poder seguirlo
+    // aunque el dedo se mueva fuera del elemento original.
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup", handlePointerUp);
+    window.addEventListener("pointercancel", handlePointerUp);
+  }
+
+  function handlePointerMove(e) {
+    if (!draggingRef.current || !listRef.current) return;
+    const point = e.touches ? e.touches[0] : e;
+    const el = document.elementFromPoint(point.clientX, point.clientY);
+    const li = el?.closest?.("[data-item-id]");
+    if (!li) return;
+    const targetId = li.getAttribute("data-item-id");
+    if (targetId && targetId !== draggingRef.current) {
+      setOverId(targetId);
+      setItems((prev) => {
+        const arr = [...prev];
+        const fromIdx = arr.findIndex((i) => i.id === draggingRef.current);
+        const toIdx = arr.findIndex((i) => i.id === targetId);
+        if (fromIdx === -1 || toIdx === -1) return prev;
+        const [moved] = arr.splice(fromIdx, 1);
+        arr.splice(toIdx, 0, moved);
+        return arr;
+      });
     }
-    setItems((prev) => {
-      const arr = [...prev];
-      const fromIdx = arr.findIndex((i) => i.id === dragId);
-      const toIdx = arr.findIndex((i) => i.id === targetId);
-      if (fromIdx === -1 || toIdx === -1) return prev;
-      const [moved] = arr.splice(fromIdx, 1);
-      arr.splice(toIdx, 0, moved);
-      return arr;
-    });
+  }
+
+  function handlePointerUp() {
+    draggingRef.current = null;
     setDragId(null);
     setOverId(null);
+    window.removeEventListener("pointermove", handlePointerMove);
+    window.removeEventListener("pointerup", handlePointerUp);
+    window.removeEventListener("pointercancel", handlePointerUp);
   }
 
   function moveByStep(id, dir) {
@@ -166,7 +191,7 @@ export default function App() {
             </h1>
           </div>
           <p style={{ fontFamily: "Barlow, sans-serif", color: "#8B8A94", fontSize: 15, margin: 0 }}>
-            Arrastra las tarjetas para reordenar. Funciona sin conexión, todo se guarda en tu celular.
+            Mantén presionado el ícono ⠿ y arrastra para reordenar. Funciona sin conexión, todo se guarda en tu celular.
           </p>
         </header>
 
@@ -282,22 +307,17 @@ export default function App() {
             Tu lista está vacía. Añade tu primer anime arriba.
           </div>
         ) : (
-          <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 10 }}>
+          <ul
+            ref={listRef}
+            style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 10 }}
+          >
             {items.map((item, idx) => {
               const isDragging = dragId === item.id;
               const isOver = overId === item.id && dragId !== item.id;
               return (
                 <li
                   key={item.id}
-                  draggable
-                  onDragStart={() => setDragId(item.id)}
-                  onDragEnter={() => setOverId(item.id)}
-                  onDragOver={(e) => e.preventDefault()}
-                  onDrop={() => handleDrop(item.id)}
-                  onDragEnd={() => {
-                    setDragId(null);
-                    setOverId(null);
-                  }}
+                  data-item-id={item.id}
                   style={{
                     display: "flex",
                     alignItems: "center",
@@ -306,9 +326,9 @@ export default function App() {
                     border: `1px solid ${isOver ? ACCENT : "#232228"}`,
                     borderRadius: 12,
                     padding: 10,
-                    opacity: isDragging ? 0.4 : 1,
-                    transition: "background 0.15s, border-color 0.15s, opacity 0.15s",
-                    cursor: "grab",
+                    opacity: isDragging ? 0.5 : 1,
+                    transition: isDragging ? "none" : "background 0.15s, border-color 0.15s, opacity 0.15s",
+                    touchAction: "pan-y",
                   }}
                 >
                   <div
@@ -390,7 +410,19 @@ export default function App() {
                     </button>
                   </div>
 
-                  <GripVertical size={18} color="#3A3940" style={{ flexShrink: 0 }} />
+                  <div
+                    onPointerDown={(e) => handlePointerDownOnGrip(e, item.id)}
+                    style={{
+                      flexShrink: 0,
+                      padding: 8,
+                      margin: -8,
+                      touchAction: "none",
+                      cursor: "grab",
+                      display: "flex",
+                    }}
+                  >
+                    <GripVertical size={18} color={isDragging ? ACCENT : "#3A3940"} />
+                  </div>
 
                   <button
                     onClick={() => removeAnime(item.id)}
