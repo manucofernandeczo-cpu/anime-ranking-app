@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { GripVertical, Plus, X, ImageOff, Sparkles, Upload, Check } from "lucide-react";
+import { GripVertical, Plus, X, ImageOff, Sparkles, Upload, Check, Search } from "lucide-react";
 import { idbGet, idbSet } from "./idb.js";
 
 const ACCENT = "#FF4655";
@@ -59,6 +59,8 @@ export default function App() {
   const [editName, setEditName] = useState("");
   const [editImage, setEditImage] = useState("");
   const [viewingItem, setViewingItem] = useState(null);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const fileInputRef = useRef(null);
   const editFileInputRef = useRef(null);
   const listRef = useRef(null);
@@ -90,6 +92,17 @@ export default function App() {
     }, 250);
     return () => clearTimeout(t);
   }, [items, loaded]);
+
+  // Cuando se busca algo, salta suavemente hasta el primer resultado para mostrar su puesto.
+  useEffect(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return;
+    const match = items.find((i) => i.name.toLowerCase().includes(q));
+    if (match) {
+      const el = document.querySelector(`[data-item-id="${match.id}"]`);
+      el?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [searchQuery]);
 
   async function handleFileChange(e) {
     const file = e.target.files?.[0];
@@ -251,24 +264,113 @@ export default function App() {
     >
       <div style={{ maxWidth: 640, margin: "0 auto" }}>
         <header style={{ marginBottom: 28 }}>
-          <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 4 }}>
-            <Sparkles size={22} color={ACCENT} strokeWidth={2.5} />
-            <h1
+          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10 }}>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 4 }}>
+                <Sparkles size={22} color={ACCENT} strokeWidth={2.5} />
+                <h1
+                  style={{
+                    fontFamily: "'Barlow Condensed', sans-serif",
+                    fontWeight: 900,
+                    fontSize: 36,
+                    letterSpacing: "-0.02em",
+                    margin: 0,
+                    textTransform: "uppercase",
+                  }}
+                >
+                  Mi Ranking de Anime
+                </h1>
+              </div>
+              <p style={{ fontFamily: "Barlow, sans-serif", color: "#8B8A94", fontSize: 15, margin: 0 }}>
+                Mantén presionado ⠿ para reordenar. Toca el nombre o la imagen para editarlos.
+              </p>
+            </div>
+
+            <button
+              onClick={() => {
+                setSearchOpen((o) => !o);
+                if (searchOpen) setSearchQuery("");
+              }}
+              aria-label="Buscar anime"
               style={{
-                fontFamily: "'Barlow Condensed', sans-serif",
-                fontWeight: 900,
-                fontSize: 36,
-                letterSpacing: "-0.02em",
-                margin: 0,
-                textTransform: "uppercase",
+                flexShrink: 0,
+                width: 40,
+                height: 40,
+                borderRadius: "50%",
+                border: `1px solid ${searchOpen ? ACCENT : "#232228"}`,
+                background: searchOpen ? ACCENT_SOFT : "#151419",
+                color: searchOpen ? ACCENT : "#8B8A94",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                cursor: "pointer",
               }}
             >
-              Mi Ranking de Anime
-            </h1>
+              <Search size={18} />
+            </button>
           </div>
-          <p style={{ fontFamily: "Barlow, sans-serif", color: "#8B8A94", fontSize: 15, margin: 0 }}>
-            Mantén presionado ⠿ para reordenar. Toca el nombre o la imagen para editarlos.
-          </p>
+
+          {searchOpen && (
+            <div style={{ marginTop: 14, position: "relative" }}>
+              <input
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Buscar anime en la lista..."
+                autoFocus
+                style={{
+                  width: "100%",
+                  boxSizing: "border-box",
+                  background: "#151419",
+                  border: `1px solid ${ACCENT}`,
+                  borderRadius: 8,
+                  padding: "10px 36px 10px 12px",
+                  color: "#F2F1ED",
+                  fontFamily: "Barlow, sans-serif",
+                  fontSize: 15,
+                  outline: "none",
+                }}
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery("")}
+                  aria-label="Limpiar búsqueda"
+                  style={{
+                    position: "absolute",
+                    right: 8,
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    background: "none",
+                    border: "none",
+                    color: "#5C5B64",
+                    cursor: "pointer",
+                    display: "flex",
+                    padding: 4,
+                  }}
+                >
+                  <X size={16} />
+                </button>
+              )}
+              {searchQuery.trim() &&
+                (() => {
+                  const q = searchQuery.trim().toLowerCase();
+                  const count = items.filter((i) => i.name.toLowerCase().includes(q)).length;
+                  return (
+                    <div
+                      style={{
+                        marginTop: 6,
+                        fontFamily: "Barlow, sans-serif",
+                        fontSize: 12,
+                        color: "#5C5B64",
+                      }}
+                    >
+                      {count === 0
+                        ? "Sin resultados"
+                        : `${count} resultado${count > 1 ? "s" : ""} resaltado${count > 1 ? "s" : ""}`}
+                    </div>
+                  );
+                })()}
+            </div>
+          )}
         </header>
 
         <div
@@ -401,6 +503,9 @@ export default function App() {
               const isDragging = dragId === item.id;
               const isOver = overId === item.id && dragId !== item.id;
               const isEditing = editingId === item.id;
+              const query = searchQuery.trim().toLowerCase();
+              const isSearching = query.length > 0;
+              const isMatch = isSearching && item.name.toLowerCase().includes(query);
 
               if (isEditing) {
                 return (
@@ -511,11 +616,11 @@ export default function App() {
                     display: "flex",
                     alignItems: "center",
                     gap: 12,
-                    background: isOver ? ACCENT_SOFT : "#151419",
-                    border: `1px solid ${isOver ? ACCENT : "#232228"}`,
+                    background: isOver ? ACCENT_SOFT : isMatch ? ACCENT_SOFT : "#151419",
+                    border: `1px solid ${isOver ? ACCENT : isMatch ? ACCENT : "#232228"}`,
                     borderRadius: 12,
                     padding: 10,
-                    opacity: isDragging ? 0.5 : 1,
+                    opacity: isDragging ? 0.5 : isSearching && !isMatch ? 0.3 : 1,
                     transition: isDragging ? "none" : "background 0.15s, border-color 0.15s, opacity 0.15s",
                     touchAction: isDragging ? "none" : "pan-y",
                   }}
