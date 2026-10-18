@@ -58,6 +58,7 @@ export default function App() {
   const [editingId, setEditingId] = useState(null);
   const [editName, setEditName] = useState("");
   const [editImage, setEditImage] = useState("");
+  const [viewingItem, setViewingItem] = useState(null);
   const fileInputRef = useRef(null);
   const editFileInputRef = useRef(null);
   const listRef = useRef(null);
@@ -537,7 +538,7 @@ export default function App() {
                   </div>
 
                   <div
-                    onClick={() => startEdit(item)}
+                    onClick={() => (item.image ? setViewingItem(item) : startEdit(item))}
                     style={{
                       width: 56,
                       height: 56,
@@ -655,6 +656,96 @@ export default function App() {
           {saveState === "error" && "No se pudo guardar"}
         </div>
       </div>
+
+      {viewingItem && (
+        <div
+          onClick={() => setViewingItem(null)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(5,5,7,0.95)",
+            zIndex: 50,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 20,
+            boxSizing: "border-box",
+          }}
+        >
+          <button
+            onClick={() => setViewingItem(null)}
+            aria-label="Cerrar"
+            style={{
+              position: "absolute",
+              top: "max(16px, env(safe-area-inset-top, 0px))",
+              right: 16,
+              background: "rgba(255,255,255,0.08)",
+              border: "none",
+              borderRadius: "50%",
+              width: 40,
+              height: 40,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: "#F2F1ED",
+              cursor: "pointer",
+            }}
+          >
+            <X size={20} />
+          </button>
+
+          <img
+            src={viewingItem.image}
+            alt={viewingItem.name}
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              maxWidth: "100%",
+              maxHeight: "72vh",
+              objectFit: "contain",
+              borderRadius: 10,
+            }}
+          />
+
+          <div
+            style={{
+              marginTop: 16,
+              fontFamily: "'Barlow Condensed', sans-serif",
+              fontWeight: 700,
+              fontSize: 20,
+              color: "#F2F1ED",
+              textAlign: "center",
+            }}
+          >
+            {viewingItem.name}
+          </div>
+
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              const item = viewingItem;
+              setViewingItem(null);
+              startEdit(item);
+            }}
+            style={{
+              marginTop: 18,
+              background: "none",
+              border: `1px solid ${ACCENT}`,
+              color: ACCENT,
+              borderRadius: 8,
+              padding: "8px 18px",
+              fontFamily: "'Barlow Condensed', sans-serif",
+              fontWeight: 700,
+              fontSize: 14,
+              textTransform: "uppercase",
+              letterSpacing: "0.02em",
+              cursor: "pointer",
+            }}
+          >
+            Editar
+          </button>
+        </div>
+      )}
     </div>
   );
 }
