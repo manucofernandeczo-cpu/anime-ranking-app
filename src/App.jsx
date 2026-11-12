@@ -297,9 +297,6 @@ export default function App() {
                   Mi Ranking de Anime
                 </h1>
               </div>
-              <p style={{ fontFamily: "Barlow, sans-serif", color: "#8B8A94", fontSize: 15, margin: 0 }}>
-                Mantén presionado ⠿ para reordenar. Toca el nombre o la imagen para editarlos.
-              </p>
             </div>
 
             <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
@@ -459,12 +456,12 @@ export default function App() {
               )}
             </label>
 
-            <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 8 }}>
+            <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", minHeight: 64 }}>
               <input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && addAnime()}
-                placeholder="Nombre del anime"
+                aria-label="Nombre del anime"
                 style={{
                   background: "#0B0B0F",
                   border: "1px solid #2A2930",
@@ -476,9 +473,6 @@ export default function App() {
                   outline: "none",
                 }}
               />
-              <span style={{ fontFamily: "Barlow, sans-serif", fontSize: 12, color: "#5C5B64" }}>
-                Toca el cuadro para elegir una foto de tu galería (opcional)
-              </span>
             </div>
           </div>
 
