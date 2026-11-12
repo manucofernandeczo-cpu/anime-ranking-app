@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { GripVertical, Plus, X, ImageOff, Sparkles, Upload, Check, Search } from "lucide-react";
+import { GripVertical, Plus, X, ImageOff, Sparkles, Upload, Check, Search, FileText, ArrowLeft, Copy } from "lucide-react";
 import { idbGet, idbSet } from "./idb.js";
 
 const ACCENT = "#FF4655";
@@ -60,6 +60,9 @@ export default function App() {
   const [editImage, setEditImage] = useState("");
   const [viewingItem, setViewingItem] = useState(null);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null); // anime pendiente de confirmar borrado
+  const [showTextView, setShowTextView] = useState(false); // pantalla aparte con la lista en texto
+  const [copied, setCopied] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const fileInputRef = useRef(null);
   const editFileInputRef = useRef(null);
@@ -121,6 +124,19 @@ export default function App() {
     setName("");
     setImagePreview("");
     if (fileInputRef.current) fileInputRef.current.value = "";
+  }
+
+  const listAsText = items.map((it, i) => `${i + 1}. ${it.name}`).join("\n");
+
+  async function copyList() {
+    try {
+      await navigator.clipboard.writeText(listAsText);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (e) {
+      // Si el navegador no deja copiar automático, se puede copiar a mano seleccionando el texto
+      alert("No se pudo copiar automáticamente. Mantén presionado el texto para seleccionarlo y copiarlo.");
+    }
   }
 
   function removeAnime(id) {
@@ -286,6 +302,26 @@ export default function App() {
               </p>
             </div>
 
+            <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+            <button
+              onClick={() => setShowTextView(true)}
+              aria-label="Ver lista en texto"
+              style={{
+                flexShrink: 0,
+                width: 40,
+                height: 40,
+                borderRadius: "50%",
+                border: "1px solid #232228",
+                background: "#151419",
+                color: "#8B8A94",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                cursor: "pointer",
+              }}
+            >
+              <FileText size={18} />
+            </button>
             <button
               onClick={() => {
                 setSearchOpen((o) => !o);
@@ -308,6 +344,7 @@ export default function App() {
             >
               <Search size={18} />
             </button>
+            </div>
           </div>
 
           {searchOpen && (
@@ -727,7 +764,7 @@ export default function App() {
                   </div>
 
                   <button
-                    onClick={() => removeAnime(item.id)}
+                    onClick={() => setDeleteTarget(item)}
                     aria-label="Eliminar"
                     style={{
                       background: "none",
@@ -761,6 +798,217 @@ export default function App() {
           {saveState === "error" && "No se pudo guardar"}
         </div>
       </div>
+
+      {deleteTarget && (
+        <div
+          onClick={() => setDeleteTarget(null)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(5,5,7,0.8)",
+            zIndex: 60,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 24,
+            boxSizing: "border-box",
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: "100%",
+              maxWidth: 340,
+              background: "#151419",
+              border: "1px solid #232228",
+              borderRadius: 14,
+              padding: 20,
+              textAlign: "center",
+            }}
+          >
+            <div
+              style={{
+                fontFamily: "'Barlow Condensed', sans-serif",
+                fontWeight: 800,
+                fontSize: 22,
+                textTransform: "uppercase",
+                marginBottom: 8,
+              }}
+            >
+              ¿Eliminar este anime?
+            </div>
+            <div
+              style={{
+                fontFamily: "Barlow, sans-serif",
+                fontSize: 15,
+                color: "#8B8A94",
+                marginBottom: 18,
+                wordBreak: "break-word",
+              }}
+            >
+              «{deleteTarget.name}» se va a borrar de tu lista.
+            </div>
+            <div style={{ display: "flex", gap: 10 }}>
+              <button
+                onClick={() => setDeleteTarget(null)}
+                style={{
+                  flex: 1,
+                  background: "none",
+                  border: "1px solid #3A3940",
+                  color: "#F2F1ED",
+                  borderRadius: 8,
+                  padding: "10px 14px",
+                  fontFamily: "'Barlow Condensed', sans-serif",
+                  fontWeight: 700,
+                  fontSize: 16,
+                  textTransform: "uppercase",
+                  cursor: "pointer",
+                }}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => {
+                  removeAnime(deleteTarget.id);
+                  setDeleteTarget(null);
+                }}
+                style={{
+                  flex: 1,
+                  background: ACCENT,
+                  border: "none",
+                  color: "#0B0B0F",
+                  borderRadius: 8,
+                  padding: "10px 14px",
+                  fontFamily: "'Barlow Condensed', sans-serif",
+                  fontWeight: 700,
+                  fontSize: 16,
+                  textTransform: "uppercase",
+                  cursor: "pointer",
+                }}
+              >
+                Eliminar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showTextView && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "#0B0B0F",
+            zIndex: 70,
+            overflowY: "auto",
+            WebkitOverflowScrolling: "touch",
+            color: "#F2F1ED",
+          }}
+        >
+          <div style={{ maxWidth: 640, margin: "0 auto", padding: "20px 16px 80px", boxSizing: "border-box" }}>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 10,
+                marginBottom: 20,
+                paddingTop: "env(safe-area-inset-top, 0px)",
+              }}
+            >
+              <button
+                onClick={() => setShowTextView(false)}
+                aria-label="Volver"
+                style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: "50%",
+                  border: "1px solid #232228",
+                  background: "#151419",
+                  color: "#F2F1ED",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  cursor: "pointer",
+                  flexShrink: 0,
+                }}
+              >
+                <ArrowLeft size={18} />
+              </button>
+              <h2
+                style={{
+                  flex: 1,
+                  margin: 0,
+                  fontFamily: "'Barlow Condensed', sans-serif",
+                  fontWeight: 900,
+                  fontSize: 26,
+                  textTransform: "uppercase",
+                  letterSpacing: "-0.01em",
+                }}
+              >
+                Lista en texto
+              </h2>
+              <button
+                onClick={copyList}
+                disabled={items.length === 0}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                  background: copied ? "#1F3D2B" : ACCENT,
+                  color: copied ? "#7DE0A1" : "#0B0B0F",
+                  border: "none",
+                  borderRadius: 8,
+                  padding: "9px 14px",
+                  fontFamily: "'Barlow Condensed', sans-serif",
+                  fontWeight: 700,
+                  fontSize: 15,
+                  textTransform: "uppercase",
+                  cursor: "pointer",
+                  flexShrink: 0,
+                }}
+              >
+                {copied ? <Check size={16} strokeWidth={3} /> : <Copy size={16} />}
+                {copied ? "Copiado" : "Copiar"}
+              </button>
+            </div>
+
+            {items.length === 0 ? (
+              <div
+                style={{
+                  textAlign: "center",
+                  padding: "40px 16px",
+                  color: "#5C5B64",
+                  fontFamily: "Barlow, sans-serif",
+                  border: "1px dashed #232228",
+                  borderRadius: 14,
+                }}
+              >
+                Tu lista está vacía.
+              </div>
+            ) : (
+              <pre
+                style={{
+                  margin: 0,
+                  padding: 16,
+                  background: "#151419",
+                  border: "1px solid #232228",
+                  borderRadius: 12,
+                  fontFamily: "Barlow, sans-serif",
+                  fontSize: 17,
+                  lineHeight: 1.7,
+                  whiteSpace: "pre-wrap",
+                  wordBreak: "break-word",
+                  WebkitUserSelect: "text",
+                  userSelect: "text",
+                }}
+              >
+                {listAsText}
+              </pre>
+            )}
+          </div>
+        </div>
+      )}
 
       {viewingItem && (
         <div
